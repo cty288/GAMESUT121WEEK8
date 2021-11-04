@@ -1524,7 +1524,10 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: Click on the twinkling level to navigate the map!
+  m_text: 'Click on the twinkling level to navigate the map!
+
+    Use W/S to Move
+    the Camera Up/Down!'
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
   m_sharedMaterial: {fileID: 2180264, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
@@ -1551,7 +1554,7 @@ MonoBehaviour:
   m_faceColor:
     serializedVersion: 2
     rgba: 4294967295
-  m_fontSize: 47.4
+  m_fontSize: 35.2
   m_fontSizeBase: 52.7
   m_fontWeight: 400
   m_enableAutoSizing: 1
@@ -1587,7 +1590,7 @@ MonoBehaviour:
   m_VertexBufferAutoSizeReduction: 0
   m_useMaxVisibleDescender: 1
   m_pageToDisplay: 1
-  m_margin: {x: -548.0374, y: 0, z: 10.695923, w: -24.362656}
+  m_margin: {x: -293.97253, y: -5.474228, z: -17.106934, w: -24.362656}
   m_isUsingLegacyAnimationComponent: 0
   m_isVolumetricText: 0
   m_hasFontAssetChanged: 0
