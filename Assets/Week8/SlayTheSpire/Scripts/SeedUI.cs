@@ -7,7 +7,8 @@ public class SeedUI : MonoBehaviour
 {
   
     void Start() {
-        GetComponent<TMP_Text>().text = $"Seed: {GameManager.Singleton.Seed}";
+        GetComponent<TMP_Text>().text = $"Game Seed: {GameManager.Singleton.GameSeed}\n" +
+                                        $"Chapter Seed: {GameManager.Singleton.LevelSeed}";
     }
 
    

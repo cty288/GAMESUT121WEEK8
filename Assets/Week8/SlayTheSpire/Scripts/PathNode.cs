@@ -30,6 +30,8 @@ public class PathNode {
     public Vector3 PositionOnMap;
 
     public List<GameObject> ConnectedByLevelObject;
+
+    public GameObject LevelObject;
     public PathNode() {
         connectedNodes = new List<PathNode>();
         nodeType = LevelType.Enemy;

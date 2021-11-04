@@ -1,7 +1,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
-using UnityEditor.Experimental.GraphView;
+using System.IO;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 using Random = UnityEngine.Random;
@@ -9,6 +9,10 @@ using Random = UnityEngine.Random;
 public class PathSystem : MonoBehaviour {
 
     private System.Random random;
+
+    //level seed, not game seed
+    [HideInInspector]
+    public int LevelSeed;
 
     [Space]
     [SerializeField]
@@ -19,12 +23,13 @@ public class PathSystem : MonoBehaviour {
 
     [SerializeField]
     private int pathDepth = 20;
+    public int PathDepth => pathDepth;
 
     [SerializeField]
     private int pathWidth = 7;
 
-    
 
+    public static PathSystem Singleton;
 
     [Range(0f, 10.0f)]
     [SerializeField]
@@ -61,19 +66,15 @@ public class PathSystem : MonoBehaviour {
     
     private int treasureLevel;
 
+    private void Awake() {
+        Singleton = this;
+    }
+
     // Start is called before the first frame update
-    void Start()
-    {
+    void Start() {
         SetSeed();
         InitializeTree();
-        
-
-        if (animatedPath)
-            StartCoroutine(CreatePathRoutine());
-        else
-            CreatePath();
-
-        
+        CreatePath();
     }
 
     private void InitializeTree()
@@ -91,12 +92,12 @@ public class PathSystem : MonoBehaviour {
         }
 
         int middleHeight = pathDepth / 2;
-        treasureLevel = random.Next(middleHeight - 3, middleHeight + 4);
+        treasureLevel = random.Next(middleHeight - 1, middleHeight + 2);
     }
 
 
     void SetSeed() {
-        random = GameManager.Singleton.random;
+        random = new System.Random(GameManager.Singleton.LevelSeed);
     }
 
 
@@ -158,7 +159,11 @@ public class PathSystem : MonoBehaviour {
 
                     do {
                         duplicate = false;
-                        connectedNodeIndex = random.Next(connectedLevelMinimumBound, connectedLevelMaxmimumBound + 1);
+                        //have more possibility to connect to what others already connected
+                        connectedNodeIndex = GenerateConnectedNodeIndex(connectedLevelMinimumBound,
+                            connectedLevelMaxmimumBound,
+                            tempNextLevelNodesRecord);
+
                         foreach (PathNode node in connectedNodes)
                         {
                             if (node.Order == connectedNodeIndex)
@@ -177,16 +182,16 @@ public class PathSystem : MonoBehaviour {
 
                         connectedNode = CreateNewNode(depth + 1, connectedNodeIndex);
                         tempNextLevelNodesRecord.Add(connectedNode);
-                        connectedNode.ConnectedByNodes.Add(currentLevelNode);
+                        
                         nodeTree[depth + 1][connectedNodeIndex] = connectedNode;
                     }
-
+                    connectedNode.ConnectedByNodes.Add(currentLevelNode);
                     currentLevelNode.AddNode(connectedNode);
                     connectedNodes.Add(connectedNode);
                 }
 
                 mimimumIndex = connectedIndex.FindBiggest();
-                
+                SortNodesList(tempNextLevelNodesRecord);
             }
 
             nodesAtCurrentDepth.Clear();
@@ -195,8 +200,20 @@ public class PathSystem : MonoBehaviour {
             SortNodesList(nodesAtCurrentDepth);
         }
 
-        DrawPath();
+        StartCoroutine(CreatePathRoutine());
     }
+
+    private int GenerateConnectedNodeIndex(int minimumBound, int maxBound, List<PathNode> existingNodes) {
+        if (existingNodes.Count > 0 && existingNodes[existingNodes.Count-1].Order >= minimumBound) {
+            int ran = random.Next(0, 100);
+            if (ran <= 95) {
+                return existingNodes[existingNodes.Count - 1].Order;
+            }
+        }
+        return random.Next(minimumBound, maxBound + 1);
+
+    }
+
 
     private void SortNodesList(List<PathNode> nodes) {
         for (int i = 0; i < nodes.Count - 1; i++)
@@ -213,88 +230,7 @@ public class PathSystem : MonoBehaviour {
             }
         }
     }
-    private void DrawPath() {
-        float YPos = startLocation.position.y;
 
-        for (int i = pathDepth; i >= 0; i--)
-        {
-            float XPos = startLocation.position.x;
-
-            for (int j = 0; j < pathWidth; j++)
-            {
-                if (nodeTree[i][j] != null) {
-                    PathNode node = nodeTree[i][j];
-
-                    Vector3 pos;
-                    if (node.NodeType == LevelType.Boss)
-                    {//add a bit offset
-                        pos = new Vector3(XPos + (float)(random.NextDouble() * 2 - 1) * 0.1f,
-                            (YPos + 1 + ((float)random.NextDouble() * 2 - 1) * 0.2f));
-                    }
-                    else {
-                        //add a bit offset
-                        pos = new Vector3(XPos + (float)(random.NextDouble() * 2 - 1) * 0.1f,
-                            (YPos + ((float)random.NextDouble() * 2 - 1) * 0.2f));
-                    }
-
-
-                    node.PositionOnMap = pos;
-
-                    GameObject obj = Instantiate(levelObjectPrefabs[(int)node.NodeType],
-                        pos, Quaternion.identity);
-
-                    
-                    node.ConnectedNodes.ForEach(connectedNodes => {
-                        connectedNodes.ConnectedByLevelObject.Add(obj);
-                    });
-                    obj.GetComponent<LevelObject>().Node = node;
-                   
-                }
-
-                XPos += cellXInterval;
-            }
-
-            YPos += cellYInterval;
-        }
-
-
-
-        //draw connection
-        for (int i = 0; i < nodeTree.Count; i++) {
-            for (int j = 0; j < nodeTree[i].Count; j++) {
-                if (nodeTree[i][j] != null) {
-                    if (nodeTree[i][j].ConnectedNodes.Count > 0) {
-                        PathNode node = nodeTree[i][j];
-
-                        Vector3 fromPos;
-                        if (node.NodeType == LevelType.Boss) {
-                            fromPos = new Vector3(node.PositionOnMap.x,
-                                node.PositionOnMap.y - 1f, -0.1f);
-                        }
-                        else {
-                            fromPos = new Vector3(node.PositionOnMap.x,
-                                node.PositionOnMap.y - 0.4f, -0.1f);
-                        }
-                       
-
-                        PathNode[] ToNodes = node.ConnectedNodes.ToArray();
-
-                        foreach (PathNode toNode in ToNodes) {
-                            Vector3 toPos = new Vector3(toNode.PositionOnMap.x,
-                                toNode.PositionOnMap.y + 0.4f, -0.1f);
-
-
-                            LineRenderer line =  Instantiate(this.line).GetComponent<LineRenderer>();
-                            line.SetPositions(new Vector3[] {
-                                fromPos,
-                                toPos,
-                            });
-                        }
-                    }
-                }
-            }
-        }
-    }
 
 
     private int GetConnectedNodeNumber(int depth) {
@@ -304,23 +240,38 @@ public class PathSystem : MonoBehaviour {
         //frac: 0 - 1
         int chance = random.Next(0, 100);
 
-        if (depth != 0 && depth!= pathDepth-1) {
+        if  (depth> 2 && depth != pathDepth - 2) {
            
-
             if (frac >= 0 && frac < 0.3) {
+
+                if (chance >= 0 && chance < 70) {
+                    return 1;
+                }else if (chance >= 70 && chance < 90) {
+                    return 2;
+                }
+                
+                return 3;
+                
+
+            }else if (frac >= 0.3 && frac < 0.6) {
                 if (chance >= 0 && chance < 60)
                 {
                     return 1;
                 }
-                return 2;
+                else if (chance >= 60 && chance < 90)
+                {
+                    return 2;
+                }
 
-            }else if (frac >= 0.3 && frac < 0.9) {
+                return 3;
+            }
+            else if (frac >= 0.6 && frac < 0.9) {
 
-                if (chance >= 0 && chance < 65)
+                if (chance >= 0 && chance < 50)
                 {
                     return 1;
                 }
-                else if (chance >= 65 && chance < 90)
+                else if (chance >= 50 && chance < 90)
                 {
                     return 2;
                 }
@@ -329,25 +280,23 @@ public class PathSystem : MonoBehaviour {
             }
            
             else {
-                if (chance >= 0 && chance < 60)
+                if (chance >= 0 && chance < 40)
                 {
                     return 1;
-                }else if (chance >= 60 && chance <= 80) {
+                }else if (chance >= 50 && chance <= 80) {
                     return 2;
                 }
                 return 3;
             }
 
-        }
-        else if (depth == 0) {
-            if (chance >= 0 && chance < 60)
-            {
+        }else {
+            if (depth <= 2) {
+                return random.Next(3, 6);
+            }
+            else {
                 return 2;
             }
-
-            return 3;
-        }else {
-            return random.Next(2, 4);
+           
         }
         
     }
@@ -421,32 +370,101 @@ public class PathSystem : MonoBehaviour {
 
     IEnumerator CreatePathRoutine()
     {
-        /*
-        gridCellList.Clear();
-        Vector2 currentPosition = startLocation.transform.position;
-        gridCellList.Add(new MyGridCell(currentPosition));
+        float YPos = startLocation.position.y;
 
-        for (int i = 0; i < pathLength; i++)
+        for (int i = pathDepth; i >= 0; i--)
         {
+            float XPos = startLocation.position.x;
 
-            int n = random.Next(100);
-
-            if (n.IsBetween(0, 49))
+            for (int j = 0; j < pathWidth; j++)
             {
-                currentPosition = new Vector2(currentPosition.x + cellSize, currentPosition.y);
-            }
-            else
-            {
-                currentPosition = new Vector2(currentPosition.x, currentPosition.y + cellSize);
+                if (nodeTree[i][j] != null) {
+                    PathNode node = nodeTree[i][j];
+
+                    Vector3 pos;
+                    if (node.NodeType == LevelType.Boss)
+                    {//add a bit offset
+                        pos = new Vector3(XPos + (float)(random.NextDouble() * 2 - 1) * 0.1f,
+                            (YPos + 1 + ((float)random.NextDouble() * 2 - 1) * 0.2f));
+                    }
+                    else {
+                        //add a bit offset
+                        pos = new Vector3(XPos + (float)(random.NextDouble() * 2 - 1) * 0.1f,
+                            (YPos + ((float)random.NextDouble() * 2 - 1) * 0.2f));
+                    }
+
+
+                    node.PositionOnMap = pos;
+
+                    GameObject obj = Instantiate(levelObjectPrefabs[(int)node.NodeType],
+                        pos, Quaternion.identity);
+
+                    node.LevelObject = obj;
+                    obj.GetComponent<LevelObject>().LevelType = node.NodeType;
+                    node.ConnectedNodes.ForEach(connectedNodes => {
+                        connectedNodes.ConnectedByLevelObject.Add(obj);
+                    });
+                    obj.GetComponent<LevelObject>().Node = node;
+                    yield return new WaitForSeconds(0.02f);
+                }
+
+                XPos += cellXInterval;
             }
 
-            gridCellList.Add(new MyGridCell(currentPosition));
-            yield return null;
-        }*/
+            YPos += cellYInterval;
+        }
+
+
+
+        //draw connection
+        for (int i = 0; i < nodeTree.Count; i++) {
+            for (int j = 0; j < nodeTree[i].Count; j++) {
+                if (nodeTree[i][j] != null) {
+                    if (nodeTree[i][j].ConnectedNodes.Count > 0) {
+                        PathNode node = nodeTree[i][j];
+
+                        Vector3 fromPos;
+                        if (node.NodeType == LevelType.Boss) {
+                            fromPos = new Vector3(node.PositionOnMap.x,
+                                node.PositionOnMap.y - 1f, -0.1f);
+                        }
+                        else {
+                            fromPos = new Vector3(node.PositionOnMap.x,
+                                node.PositionOnMap.y - 0.4f, -0.1f);
+                        }
+                       
+
+                        PathNode[] ToNodes = node.ConnectedNodes.ToArray();
+
+                        foreach (PathNode toNode in ToNodes) {
+                            Vector3 toPos = new Vector3(toNode.PositionOnMap.x,
+                                toNode.PositionOnMap.y + 0.4f, -0.1f);
+
+
+                            LineRenderer line =  Instantiate(this.line).GetComponent<LineRenderer>();
+                            line.SetPositions(new Vector3[] {
+                                fromPos,
+                                toPos,
+                            });
+                            yield return null;
+                        }
+                    }
+                }
+            }
+        }
         yield return null;
     }
 
+    public List<PathNode> GetPathNodeAtDepth(int depth) {
+        List<PathNode> pathNodes = new List<PathNode>();
+        foreach (PathNode node in nodeTree[depth]) {
+            if (node != null) {
+                pathNodes.Add(node);
+            }
+        }
 
+        return pathNodes;
+    }
 
     
 }
