@@ -22,5 +22,16 @@ public static class IntExtensions {
         return n;
     }
 
+    public static int FindBiggest(this List<int> list) {
+        int biggest = list[0];
+        foreach (int i in list) {
+            if (i > biggest) {
+                biggest = i;
+            }
+        }
+
+        return biggest;
+    }
+
 
 }
