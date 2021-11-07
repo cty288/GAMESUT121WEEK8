@@ -405,7 +405,7 @@ public class PathSystem : MonoBehaviour {
                         connectedNodes.ConnectedByLevelObject.Add(obj);
                     });
                     obj.GetComponent<LevelObject>().Node = node;
-                    yield return new WaitForSeconds(0.02f);
+                    yield return new WaitForSeconds(0.01f);
                 }
 
                 XPos += cellXInterval;
@@ -446,7 +446,7 @@ public class PathSystem : MonoBehaviour {
                                 fromPos,
                                 toPos,
                             });
-                            yield return null;
+                           // yield return null;
                         }
                     }
                 }
